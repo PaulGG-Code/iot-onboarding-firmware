@@ -58,36 +58,46 @@ def getFirmwareHash():
 
 def getDeviceDataHash(): 
     # Get the firmware version
-    sys_name = uos.uname().sysname # 'esp8266'
-    fw_release = uos.uname().release # 2.2.0-dev(9422289)
-    fw_version = uos.uname().version # v2.24.1 on 2024-02-23
-    machine_name = uos.uname().machine # ESP module (1M) with ESP8266  
-    chip_id = hexlify(machine.unique_id()).decode('utf-8') # 42c1dd00
+    sys_name = uos.uname().sysname # 'esp32'
+    fw_release = uos.uname().release # 1.22.2
+    fw_version = uos.uname().version # v1.22.2 on 2024-02-22
+    machine_name = uos.uname().machine # Generic ESP32 module with OTA with ESP32
+    chip_id = hexlify(machine.unique_id()).decode('utf-8') # 3c71bfab1a64
     device_data = sys_name.encode() + fw_release.encode() + fw_version.encode() + machine_name.encode() + chip_id
     # print("Device data: ", device_data)
     # Get hash of concatenated string of device data
     return hashify(device_data)
 
 def getDeviceGroupIdHash():
-    return hashify("dg_1".encode())
+    return hashify("dg_3".encode())
 
 def authenticateDevice(deviceId):
     print("Authenticating device...") 
     firmwareHash = getFirmwareHash() 
     deviceDataHash = getDeviceDataHash() 
     deviceGroupIdHash = getDeviceGroupIdHash()  
-    payload={
-        "firmwareHash": firmwareHash,
-        "deviceDataHash" : deviceDataHash, 
-        "deviceGroupIdHash": deviceGroupIdHash, 
-        "deviceId": deviceId,
-        "chainId": "1442",
-    }, 
+    payload = json.dumps({
+    "firmwareHash": firmwareHash,
+    "deviceDataHash": deviceDataHash, 
+    "deviceGroupIdHash": deviceGroupIdHash, 
+    "deviceId": deviceId,
+    "chainId": "1442"
+    })
+
     print("Sending token ingredients: ", payload)
     # Send these token ingredients and get the onboarding key from the main server
-    response = urequests.request("POST", ONBOARDING_RPC_URL+"/generate-onboarding-key-for-device", headers={'Content-Type': 'application/json'}, json=payload) 
-    key = response.json().get("key") 
-    print("Recieved Onboarding Key: ", key)
-    if(key == None):
-        raise Exception("Invalid Onboarding Key")
-    return key 
+    headers = {'Content-Type': 'application/json'}
+    response = urequests.post(ONBOARDING_RPC_URL + "/generate-onboarding-key-for-device", headers=headers, data=payload)
+    # response = urequests.request("POST", ONBOARDING_RPC_URL+"/generate-onboarding-key-for-device", headers={'Content-Type': 'application/json'}, json=payload) 
+    if response.status_code == 200:
+        key = response.json().get("key")
+        print("Received Onboarding Key:", key)
+        if key is None:
+            raise Exception("Invalid Onboarding Key")
+        response.close()
+        return key
+    else:
+        print("Error:", response.text)
+        response.close()
+        raise Exception("Failed to authenticate device")
+ 
