@@ -81,7 +81,7 @@ def authenticateDevice(deviceId):
     "deviceDataHash": deviceDataHash, 
     "deviceGroupIdHash": deviceGroupIdHash, 
     "deviceId": deviceId,
-    "chainId": "1442"
+    "chainId": "2442"
     })
 
     print("Sending token ingredients: ", payload)
